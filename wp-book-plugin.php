@@ -333,3 +333,92 @@ function wp_book_get_currency() {
 function wp_book_get_books_per_page() {
     return get_option('wp_book_books_per_page', 10);
 }
+
+// Register the [book] shortcode
+add_shortcode('book', 'wp_book_shortcode');
+function wp_book_shortcode($atts) {
+    // Set default attributes
+    $atts = shortcode_atts(array(
+        'id'           => '',
+        'author_name'  => '',
+        'year'         => '',
+        'category'     => '',
+        'tag'          => '',
+        'publisher'     => ''
+    ), $atts, 'book');
+
+    // Query arguments
+    $args = array('post_type' => 'book', 'posts_per_page' => -1, 'post_status' => 'publish');
+
+    // Add conditions based on shortcode attributes
+    if (!empty($atts['id'])) {
+        $args['p'] = intval($atts['id']);
+    }
+
+    if (!empty($atts['author_name'])) {
+        $args['meta_query'][] = array(
+            'key'     => '_wp_book_meta',
+            'value'   => esc_attr($atts['author_name']),
+            'compare' => 'LIKE',
+        );
+    }
+
+    if (!empty($atts['year'])) {
+        $args['meta_query'][] = array(
+            'key'     => '_wp_book_meta',
+            'value'   => intval($atts['year']),
+            'compare' => 'LIKE',
+        );
+    }
+
+    if (!empty($atts['category'])) {
+        $args['tax_query'][] = array(
+            'taxonomy' => 'book_category',
+            'field'    => 'slug',
+            'terms'    => sanitize_text_field($atts['category']),
+        );
+    }
+
+    if (!empty($atts['tag'])) {
+        $args['tax_query'][] = array(
+            'taxonomy' => 'book_tag',
+            'field'    => 'slug',
+            'terms'    => sanitize_text_field($atts['tag']),
+        );
+    }
+
+    if (!empty($atts['publisher'])) {
+        $args['meta_query'][] = array(
+            'key'     => '_wp_book_meta',
+            'value'   => esc_attr($atts['publisher']),
+            'compare' => 'LIKE',
+        );
+    }
+
+    // Fetch the books
+    $query = new WP_Query($args);
+    $output = '';
+
+    // Check if any books were found
+    if ($query->have_posts()) {
+        $output .= '<div class="book-list">';
+        while ($query->have_posts()) {
+            $query->the_post();
+            $meta = get_post_meta(get_the_ID(), '_wp_book_meta', true);
+
+            $output .= '<div class="book">';
+            $output .= '<h2>' . get_the_title() . '</h2>';
+            $output .= '<p><strong>Author:</strong> ' . esc_html($meta['author_name'] ?? 'N/A') . '</p>';
+            $output .= '<p><strong>Year:</strong> ' . esc_html($meta['year'] ?? 'N/A') . '</p>';
+            $output .= '<p><strong>Publisher:</strong> ' . esc_html($meta['publisher'] ?? 'N/A') . '</p>';
+            $output .= '<p><strong>Price:</strong> ' . esc_html($meta['price'] ?? 'N/A') . ' ' . wp_book_get_currency() . '</p>';
+            $output .= '</div>';
+        }
+        $output .= '</div>';
+        wp_reset_postdata();
+    } else {
+        $output .= '<p>' . __('No books found.', 'wp-book') . '</p>';
+    }
+
+    return $output;
+}
