@@ -114,3 +114,37 @@ function wp_book_register_taxonomy_tag()
 
     register_taxonomy('book_tag', 'book', $args);
 }
+
+// Activation Hook: Create custom database table for book metadata
+register_activation_hook(__FILE__, 'wp_book_create_table');
+function wp_book_create_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'book_meta';
+    
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE $table_name (
+        meta_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        post_id BIGINT(20) UNSIGNED NOT NULL,
+        author_name VARCHAR(255) NOT NULL,
+        price DECIMAL(10,2) NOT NULL,
+        publisher VARCHAR(255) NOT NULL,
+        year INT(4) NOT NULL,
+        edition VARCHAR(100) NOT NULL,
+        url VARCHAR(255) NOT NULL,
+        PRIMARY KEY (meta_id),
+        FOREIGN KEY (post_id) REFERENCES {$wpdb->posts}(ID) ON DELETE CASCADE
+    ) $charset_collate;";
+
+    $wpdb->query($sql);
+}
+
+
+
+// Deactivation Hook: Cleanup table
+register_deactivation_hook(__FILE__, 'wp_book_delete_table');
+function wp_book_delete_table() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'book_meta';
+    $wpdb->query("DROP TABLE IF EXISTS $table_name");
+}
