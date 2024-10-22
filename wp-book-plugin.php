@@ -256,3 +256,80 @@ function wp_book_delete_table() {
     $table_name = $wpdb->prefix . 'book_meta';
     $wpdb->query("DROP TABLE IF EXISTS $table_name");
 }
+
+// Add custom settings page under the "Books" menu
+add_action('admin_menu', 'wp_book_add_admin_menu');
+function wp_book_add_admin_menu() {
+    add_submenu_page(
+        'edit.php?post_type=book',     // Parent menu slug
+        __('Book Settings', 'wp-book'), // Page title
+        __('Settings', 'wp-book'),      // Menu title
+        'manage_options',               // Capability
+        'wp-book-settings',             // Menu slug
+        'wp_book_settings_page'         // Callback function
+    );
+}
+
+// Register settings
+add_action('admin_init', 'wp_book_register_settings');
+function wp_book_register_settings() {
+    // Register a new setting for currency
+    register_setting('wp_book_settings_group', 'wp_book_currency', array(
+        'type' => 'string',
+        'sanitize_callback' => 'sanitize_text_field',
+        'default' => 'INR'
+    ));
+
+    // Register a new setting for number of books per page
+    register_setting('wp_book_settings_group', 'wp_book_books_per_page', array(
+        'type' => 'integer',
+        'sanitize_callback' => 'intval',
+        'default' => 10
+    ));
+}
+
+// Create the settings page content
+function wp_book_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1><?php _e('Book Settings', 'wp-book'); ?></h1>
+        <form method="post" action="options.php">
+            <?php
+            // Output settings fields for the registered settings
+            settings_fields('wp_book_settings_group');
+            do_settings_sections('wp_book_settings_group');
+            ?>
+            <table class="form-table">
+                <tr valign="top">
+                    <th scope="row"><?php _e('Currency', 'wp-book'); ?></th>
+                    <td>
+                        <input type="text" name="wp_book_currency" value="<?php echo esc_attr(get_option('wp_book_currency', 'INR')); ?>" />
+                        <p class="description"><?php _e('Enter the currency code (e.g., USD, EUR, GBP)', 'wp-book'); ?></p>
+                    </td>
+                </tr>
+                <tr valign="top">
+                    <th scope="row"><?php _e('Books per Page', 'wp-book'); ?></th>
+                    <td>
+                        <input type="number" name="wp_book_books_per_page" value="<?php echo esc_attr(get_option('wp_book_books_per_page', 10)); ?>" />
+                        <p class="description"><?php _e('Number of books to display per page in book listings.', 'wp-book'); ?></p>
+                    </td>
+                </tr>
+            </table>
+
+            <?php
+            // Output save settings button
+            submit_button();
+            ?>
+        </form>
+    </div>
+    <?php
+}
+
+// Use the settings on the front end or in the plugin
+function wp_book_get_currency() {
+    return get_option('wp_book_currency', 'INR');
+}
+
+function wp_book_get_books_per_page() {
+    return get_option('wp_book_books_per_page', 10);
+}
