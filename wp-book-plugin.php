@@ -139,7 +139,51 @@ function wp_book_create_table() {
     $wpdb->query($sql);
 }
 
+// Add custom meta box for book details
+add_action('add_meta_boxes', 'wp_book_add_meta_box');
+function wp_book_add_meta_box() {
+    add_meta_box(
+        'wp_book_meta_box', // Meta box ID
+        __('Book Details', 'wp-book'), // Title
+        'wp_book_meta_box_callback', // Callback function
+        'book', // Post type
+        'normal', // Context
+        'high' // Priority
+    );
+}
 
+function wp_book_meta_box_callback($post) {
+    wp_nonce_field(basename(__FILE__), 'wp_book_nonce');
+    
+    $meta = get_post_meta($post->ID, '_wp_book_meta', true);
+
+    ?>
+    <p>
+        <label for="wp_book_author_name"><?php _e('Author Name', 'wp-book'); ?></label>
+        <input type="text" id="wp_book_author_name" name="wp_book_author_name" value="<?php echo esc_attr($meta['author_name'] ?? ''); ?>" size="25" />
+    </p>
+    <p>
+        <label for="wp_book_price"><?php _e('Price', 'wp-book'); ?></label>
+        <input type="text" id="wp_book_price" name="wp_book_price" value="<?php echo esc_attr($meta['price'] ?? ''); ?>" size="25" />
+    </p>
+    <p>
+        <label for="wp_book_publisher"><?php _e('Publisher', 'wp-book'); ?></label>
+        <input type="text" id="wp_book_publisher" name="wp_book_publisher" value="<?php echo esc_attr($meta['publisher'] ?? ''); ?>" size="25" />
+    </p>
+    <p>
+        <label for="wp_book_year"><?php _e('Year', 'wp-book'); ?></label>
+        <input type="number" id="wp_book_year" name="wp_book_year" value="<?php echo esc_attr($meta['year'] ?? ''); ?>" size="25" />
+    </p>
+    <p>
+        <label for="wp_book_edition"><?php _e('Edition', 'wp-book'); ?></label>
+        <input type="text" id="wp_book_edition" name="wp_book_edition" value="<?php echo esc_attr($meta['edition'] ?? ''); ?>" size="25" />
+    </p>
+    <p>
+        <label for="wp_book_url"><?php _e('URL', 'wp-book'); ?></label>
+        <input type="url" id="wp_book_url" name="wp_book_url" value="<?php echo esc_attr($meta['url'] ?? ''); ?>" size="25" />
+    </p>
+    <?php
+}
 
 // Deactivation Hook: Cleanup table
 register_deactivation_hook(__FILE__, 'wp_book_delete_table');
