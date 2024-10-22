@@ -185,6 +185,70 @@ function wp_book_meta_box_callback($post) {
     <?php
 }
 
+// Save the meta box data
+add_action('save_post', 'wp_book_save_meta_box');
+function wp_book_save_meta_box($post_id) {
+    $is_autosave = wp_is_post_autosave($post_id);
+    $is_revision = wp_is_post_revision($post_id);
+    $is_valid_nonce = (isset($_POST['wp_book_nonce']) && wp_verify_nonce($_POST['wp_book_nonce'], basename(__FILE__))) ? true : false;
+
+    if ($is_autosave || $is_revision || !$is_valid_nonce) {
+        return;
+    }
+
+    $meta = array(
+        'author_name' => sanitize_text_field($_POST['wp_book_author_name']),
+        'price'       => floatval($_POST['wp_book_price']),
+        'publisher'   => sanitize_text_field($_POST['wp_book_publisher']),
+        'year'        => intval($_POST['wp_book_year']),
+        'edition'     => sanitize_text_field($_POST['wp_book_edition']),
+        'url'         => esc_url_raw($_POST['wp_book_url']),
+    );
+
+    update_post_meta($post_id, '_wp_book_meta', $meta);
+
+    // Save meta to custom table
+    wp_book_save_meta_to_custom_table($post_id, $meta);
+}
+
+function wp_book_save_meta_to_custom_table($post_id, $meta) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'book_meta';
+
+    $exists = $wpdb->get_var($wpdb->prepare("SELECT meta_id FROM $table_name WHERE post_id = %d", $post_id));
+
+    if ($exists) {
+        $wpdb->update(
+            $table_name,
+            array(
+                'author_name' => $meta['author_name'],
+                'price'       => $meta['price'],
+                'publisher'   => $meta['publisher'],
+                'year'        => $meta['year'],
+                'edition'     => $meta['edition'],
+                'url'         => $meta['url'],
+            ),
+            array('post_id' => $post_id),
+            array('%s', '%f', '%s', '%d', '%s', '%s'),
+            array('%d')
+        );
+    } else {
+        $wpdb->insert(
+            $table_name,
+            array(
+                'post_id'     => $post_id,
+                'author_name' => $meta['author_name'],
+                'price'       => $meta['price'],
+                'publisher'   => $meta['publisher'],
+                'year'        => $meta['year'],
+                'edition'     => $meta['edition'],
+                'url'         => $meta['url'],
+            ),
+            array('%d', '%s', '%f', '%s', '%d', '%s', '%s')
+        );
+    }
+}
+
 // Deactivation Hook: Cleanup table
 register_deactivation_hook(__FILE__, 'wp_book_delete_table');
 function wp_book_delete_table() {
