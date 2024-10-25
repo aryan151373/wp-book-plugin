@@ -422,3 +422,58 @@ function wp_book_shortcode($atts) {
 
     return $output;
 }
+
+// Enqueue block editor assets
+add_action('enqueue_block_editor_assets', 'wp_book_enqueue_block_editor_assets');
+function wp_book_enqueue_block_editor_assets() {
+    wp_enqueue_script(
+        'wp-book-block',
+        plugins_url('/js/book-block.js', __FILE__), 
+        array('wp-blocks', 'wp-element', 'wp-editor', 'wp-components'), // Dependencies
+        null,
+        true // Load in footer
+    );
+}
+
+// Fetch books by category
+add_action('rest_api_init', function () {
+    register_rest_route('wp-book/v1', '/books', array(
+        'methods' => 'GET',
+        'callback' => 'wp_book_get_books_by_category',
+        'permission_callback' => '__return_true',
+    ));
+});
+
+function wp_book_get_books_by_category(WP_REST_Request $request) {
+    $category_id = $request->get_param('category_id');
+
+    $args = array(
+        'post_type' => 'book',
+        'tax_query' => array(
+            array(
+                'taxonomy' => 'book_category',
+                'field' => 'term_id',
+                'terms' => $category_id,
+            ),
+        ),
+    );
+
+    $query = new WP_Query($args);
+    $books = [];
+
+    if ($query->have_posts()) {
+        while ($query->have_posts()) {
+            $query->the_post();
+            $books[] = array(
+                'id' => get_the_ID(),
+                'title' => get_the_title(),
+                'author' => get_post_meta(get_the_ID(), '_wp_book_meta', true)['author_name'] ?? '',
+                'price' => get_post_meta(get_the_ID(), '_wp_book_meta', true)['price'] ?? '',
+                'url' => get_post_meta(get_the_ID(), '_wp_book_meta', true)['url'] ?? '',
+            );
+        }
+        wp_reset_postdata();
+    }
+
+    return new WP_REST_Response($books, 200);
+}
